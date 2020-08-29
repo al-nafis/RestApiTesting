@@ -8,15 +8,19 @@ import androidx.databinding.BindingAdapter
 import androidx.databinding.DataBindingUtil
 import androidx.databinding.ObservableField
 import com.mnafis.restapitesting.databinding.ActivityMainBinding
-import com.mnafis.restapitesting.omdb.MovieListResponse
 import com.mnafis.restapitesting.omdb.MovieResponse
 import com.mnafis.restapitesting.omdb.OmdbManager
+import com.mnafis.restapitesting.rest_countries.CountryManager
+import com.mnafis.restapitesting.rest_countries.CountryResponse
 import com.mnafis.restapitesting.room_database.Movie
 import com.mnafis.restapitesting.room_database.MovieDao
 import com.squareup.picasso.Picasso
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 
 class MainActivity : AppCompatActivity() {
 
@@ -47,6 +51,22 @@ class MainActivity : AppCompatActivity() {
                         onError(it) }
                 )
         )
+
+        val countryManager = CountryManager()
+
+        countryManager.getCountryByName("usa").enqueue(object : Callback<List<CountryResponse>> {
+            override fun onFailure(call: Call<List<CountryResponse>>, t: Throwable) {
+                Log.d("COUNTRY", t.message)
+                t.printStackTrace()
+            }
+
+            override fun onResponse(
+                call: Call<List<CountryResponse>>,
+                response: Response<List<CountryResponse>>
+            ) {
+                Log.d("COUNTRY", response.body()!!.first().name)
+            }
+        })
     }
 
     override fun onDestroy() {
