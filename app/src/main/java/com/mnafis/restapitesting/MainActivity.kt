@@ -3,6 +3,7 @@ package com.mnafis.restapitesting
 import android.os.Bundle
 import android.util.Log
 import android.widget.ImageView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.databinding.BindingAdapter
 import androidx.databinding.DataBindingUtil
@@ -18,6 +19,9 @@ import com.squareup.picasso.Picasso
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -26,6 +30,9 @@ class MainActivity : AppCompatActivity() {
 
     private val disposable = CompositeDisposable()
     private lateinit var moviesTable: MovieDao
+
+    private val countryManager = CountryManager()
+    private val omdbManager = OmdbManager()
 
     val movieTitle = ObservableField("")
     val year = ObservableField("")
@@ -39,24 +46,38 @@ class MainActivity : AppCompatActivity() {
             DataBindingUtil.setContentView(this, R.layout.activity_main)
         binding.activity = this
 
-        val omdbManager = OmdbManager()
-        moviesTable = RoomDatabaseBuilder.getDatabase()!!.moviesDao()
+        executeMovieCallCoroutine()
+        executeMovieCallRx()
+        executeMovieCallWithNoAdapter()
+    }
 
-        disposable.add(
-            omdbManager.getMovieDetails("something")
-                .subscribe(
-                    {
-                        onSuccess(it) },
-                    {
-                        onError(it) }
-                )
-        )
+    private fun executeMovieCallCoroutine() {
+        GlobalScope.launch {
+            delay(3000L)
+            try {
+                val response = omdbManager.getMovieDetailsCoroutine("Avengers")
 
-        val countryManager = CountryManager()
+                if (response.isSuccessful && response.body() != null) {
+                    val data = response.body()!!
+                    Log.d("TESTING-DATABASE", "COROUTINE: ${data.movieTitle}")
+                } else {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Error Occurred: ${response.message()}",
+                        Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity,
+                    "Error Occurred: ${e.message}",
+                    Toast.LENGTH_LONG).show()
+            }
+        }
+    }
 
+    private fun executeMovieCallWithNoAdapter() {
         countryManager.getCountryByName("usa").enqueue(object : Callback<List<CountryResponse>> {
             override fun onFailure(call: Call<List<CountryResponse>>, t: Throwable) {
-                Log.d("COUNTRY", t.message)
+                Log.d("TESTING-DATABASE", t.message)
                 t.printStackTrace()
             }
 
@@ -64,9 +85,25 @@ class MainActivity : AppCompatActivity() {
                 call: Call<List<CountryResponse>>,
                 response: Response<List<CountryResponse>>
             ) {
-                Log.d("COUNTRY", response.body()!!.first().name)
+                Log.d("TESTING-DATABASE", response.body()!!.first().name)
             }
         })
+    }
+
+    private fun executeMovieCallRx() {
+        moviesTable = RoomDatabaseBuilder.getDatabase()!!.moviesDao()
+
+        disposable.add(
+            omdbManager.getMovieDetailsRx("something")
+                .subscribe(
+                    {
+                        onSuccess(it)
+                    },
+                    {
+                        onError(it)
+                    }
+                )
+        )
     }
 
     override fun onDestroy() {
